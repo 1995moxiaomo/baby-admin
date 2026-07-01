@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>奶食小账本 · 管理后台</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--primary:#71C9CE;--primary-light:#E8F6F7;--primary-dark:#5AB5BA;--bg:#F0F9FA;--white:#fff;--text:#333;--text-light:#999;--border:#E8E8E8;--danger:#F44336;--success:#4CAF50;--warn:#FF9800}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Hiragino Sans GB',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+.layout{display:flex;min-height:100vh}
+.sidebar{width:220px;background:var(--white);border-right:1px solid var(--border);position:fixed;top:0;left:0;bottom:0;z-index:100;display:flex;flex-direction:column}
+.sidebar-header{padding:24px 20px;border-bottom:1px solid var(--border);text-align:center}
+.sidebar-header h1{font-size:18px;color:var(--primary);margin-bottom:4px}
+.sidebar-header p{font-size:12px;color:var(--text-light)}
+.sidebar-nav{flex:1;padding:12px 0;overflow-y:auto}
+.nav-item{display:flex;align-items:center;gap:10px;padding:12px 20px;cursor:pointer;font-size:14px;color:#666;transition:all .2s;border-left:3px solid transparent}
+.nav-item:hover{background:var(--primary-light);color:var(--primary)}
+.nav-item.active{background:var(--primary-light);color:var(--primary);border-left-color:var(--primary);font-weight:600}
+.nav-item .icon{font-size:18px;width:24px;text-align:center}
+.main{flex:1;margin-left:220px;min-height:100vh}
+.topbar{background:var(--white);border-bottom:1px solid var(--border);padding:16px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+.topbar h2{font-size:20px;font-weight:600}
+.topbar-actions{display:flex;gap:10px}
+.content{padding:24px}
+.page{display:none}
+.page.active{display:block}
+.card{background:var(--white);border-radius:12px;padding:20px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.04)}
+.card-title{font-size:16px;font-weight:600;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:24px}
+.stat-card{background:var(--white);border-radius:12px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,.04)}
+.stat-card .label{font-size:13px;color:var(--text-light);margin-bottom:8px}
+.stat-card .value{font-size:28px;font-weight:700;color:var(--primary)}
+.stat-card .sub{font-size:12px;color:var(--text-light);margin-top:4px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:10px 12px;background:var(--primary-light);color:var(--primary-dark);font-weight:600;white-space:nowrap}
+td{padding:10px 12px;border-bottom:1px solid var(--border);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+tr:hover{background:#F8FCFC}
+.tag{display:inline-block;padding:2px 10px;border-radius:12px;font-size:12px;font-weight:500}
+.tag-green{background:#E8F5E9;color:#4CAF50}
+.tag-blue{background:#E3F2FD;color:#2196F3}
+.tag-orange{background:#FFF3E0;color:#FF9800}
+.tag-red{background:#FFEBEE;color:#F44336}
+.tag-purple{background:#F3E5F5;color:#9C27B0}
+.tag-gray{background:#F5F5F5;color:#999}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all .2s}
+.btn-primary{background:var(--primary);color:var(--white)}
+.btn-primary:hover{background:var(--primary-dark)}
+.btn-danger{background:var(--danger);color:var(--white)}
+.btn-danger:hover{background:#d32f2f}
+.btn-ghost{background:transparent;color:var(--primary);border:1px solid var(--primary)}
+.btn-ghost:hover{background:var(--primary-light)}
+.btn-sm{padding:4px 10px;font-size:12px}
+.input{width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;outline:none;transition:border-color .2s}
+.input:focus{border-color:var(--primary)}
+select.input{cursor:pointer}
+textarea.input{resize:vertical;min-height:80px;font-family:inherit}
+.form-group{margin-bottom:16px}
+.form-group label{display:block;font-size:13px;font-weight:500;margin-bottom:6px;color:#555}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.form-row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.4);z-index:200;display:none;align-items:center;justify-content:center}
+.modal-overlay.show{display:flex}
+.modal{background:var(--white);border-radius:16px;width:90%;max-width:600px;max-height:85vh;overflow-y:auto;padding:24px}
+.modal h3{font-size:18px;margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid var(--border)}
+.modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px;padding-top:16px;border-top:1px solid var(--border)}
+.filter-bar{display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
+.filter-bar .input{width:auto;min-width:160px}
+.empty{text-align:center;padding:40px;color:var(--text-light)}
+.empty .icon{font-size:48px;margin-bottom:12px}
+.pagination{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:16px}
+.type-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:500}
+.chart-placeholder{height:200px;background:var(--primary-light);border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--primary);font-size:14px}
+.search-box{position:relative}
+.search-box .input{padding-left:32px}
+.search-box::before{content:"🔍";position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:14px}
+.badge{display:inline-block;min-width:20px;height:20px;line-height:20px;text-align:center;background:var(--danger);color:#fff;border-radius:10px;font-size:11px;padding:0 6px}
+.quick-stats{display:flex;gap:16px;margin-bottom:20px;flex-wrap:wrap}
+.quick-stat{display:flex;align-items:center;gap:8px;font-size:13px;color:#666}
+.quick-stat .dot{width:8px;height:8px;border-radius:50%}
+.dot-green{background:var(--success)}
+.dot-orange{background:var(--warn)}
+.dot-blue{background:#2196F3}
+@media(max-width:768px){
+  .sidebar{width:60px}
+  .sidebar-header h1,.sidebar-header p,.nav-item span:not(.icon){display:none}
+  .nav-item{justify-content:center;padding:14px 0}
+  .main{margin-left:60px}
+  .form-row,.form-row-3{grid-template-columns:1fr}
+  .stats-grid{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <h1>🍼 奶食小账本</h1>
+      <p>管理后台 v1.0</p>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-item active" data-page="dashboard"><span class="icon">📊</span><span>总览</span></div>
+      <div class="nav-item" data-page="babies"><span class="icon">👶</span><span>宝宝管理</span></div>
+      <div class="nav-item" data-page="records"><span class="icon">📋</span><span>喂养记录</span></div>
+      <div class="nav-item" data-page="growth"><span class="icon">📏</span><span>成长记录</span></div>
+      <div class="nav-item" data-page="memos"><span class="icon">📝</span><span>备忘录</span></div>
+      <div class="nav-item" data-page="family"><span class="icon">👨‍👩‍👧</span><span>家庭成员</span></div>
+      <div class="nav-item" data-page="foods"><span class="icon">🥦</span><span>食物库</span></div>
+      <div class="nav-item" data-page="articles"><span class="icon">📰</span><span>文章管理</span></div>
+      <div class="nav-item" data-page="settings"><span class="icon">⚙️</span><span>系统设置</span></div>
+    </nav>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <h2 id="pageTitle">总览</h2>
+      <div class="topbar-actions" id="topbarActions"></div>
+    </div>
+    <div class="content">
+
+      <!-- Dashboard -->
+      <div class="page active" id="page-dashboard">
+        <div class="stats-grid" id="dashboardStats"></div>
+        <div class="card">
+          <div class="card-title">📈 记录类型分布</div>
+          <div id="typeStats"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">🕐 最近记录</div>
+          <div id="recentRecords"></div>
+        </div>
+      </div>
+
+      <!-- Babies -->
+      <div class="page" id="page-babies">
+        <div class="filter-bar">
+          <button class="btn btn-primary" onclick="openBabyModal()">＋ 添加宝宝</button>
+        </div>
+        <div class="card"><div id="babyList"></div></div>
+      </div>
+
+      <!-- Records -->
+      <div class="page" id="page-records">
+        <div class="filter-bar">
+          <select class="input" id="recordTypeFilter" onchange="loadRecords()" style="width:140px">
+            <option value="">全部类型</option>
+            <option value="breast">母乳</option>
+            <option value="bottleBreast">母乳瓶喂</option>
+            <option value="formula">奶粉</option>
+            <option value="pump">吸奶</option>
+            <option value="solid">辅食</option>
+            <option value="pee">尿尿</option>
+            <option value="poop">粑粑</option>
+            <option value="sleep">睡觉</option>
+            <option value="medicine">用药</option>
+            <option value="sport">运动</option>
+          </select>
+          <input type="date" class="input" id="recordDateFilter" onchange="loadRecords()" style="width:160px">
+          <button class="btn btn-primary" onclick="openRecordModal()">＋ 添加记录</button>
+        </div>
+        <div class="card"><div id="recordList"></div></div>
+      </div>
+
+      <!-- Growth -->
+      <div class="page" id="page-growth">
+        <div class="filter-bar">
+          <button class="btn btn-primary" onclick="openGrowthModal()">＋ 添加记录</button>
+        </div>
+        <div class="card"><div id="growthList"></div></div>
+      </div>
+
+      <!-- Memos -->
+      <div class="page" id="page-memos">
+        <div class="filter-bar">
+          <select class="input" id="memoTypeFilter" onchange="loadMemos()" style="width:140px">
+            <option value="">全部类型</option>
+            <option value="milestone">里程碑</option>
+            <option value="memo">备忘录</option>
+            <option value="medical">就医记录</option>
+            <option value="custom">自定义</option>
+          </select>
+          <button class="btn btn-primary" onclick="openMemoModal()">＋ 添加备忘</button>
+        </div>
+        <div class="card"><div id="memoList"></div></div>
+      </div>
+
+      <!-- Family -->
+      <div class="page" id="page-family">
+        <div class="filter-bar">
+          <button class="btn btn-primary" onclick="openFamilyModal()">＋ 添加成员</button>
+        </div>
+        <div class="card"><div id="familyList"></div></div>
+      </div>
+
+      <!-- Foods -->
+      <div class="page" id="page-foods">
+        <div class="filter-bar">
+          <div class="search-box">
+            <input type="text" class="input" id="foodSearch" placeholder="搜索食物名称" oninput="loadFoods()">
+          </div>
+          <button class="btn btn-primary" onclick="openFoodModal()">＋ 添加食物</button>
+        </div>
+        <div class="card"><div id="foodList"></div></div>
+      </div>
+
+      <!-- Articles -->
+      <div class="page" id="page-articles">
+        <div class="filter-bar">
+          <div class="search-box">
+            <input type="text" class="input" id="articleSearch" placeholder="搜索文章标题" oninput="loadArticles()">
+          </div>
+          <select class="input" id="articleStatusFilter" onchange="loadArticles()" style="width:120px">
+            <option value="">全部状态</option>
+            <option value="published">已发布</option>
+            <option value="draft">草稿</option>
+          </select>
+          <button class="btn btn-primary" onclick="openArticleModal()">＋ 发布文章</button>
+        </div>
+        <div class="card"><div id="articleList"></div></div>
+      </div>
+
+      <!-- Settings -->
+      <div class="page" id="page-settings">
+        <div class="card">
+          <div class="card-title">⚙️ 系统设置</div>
+          <div class="form-group">
+            <label>广告单元 ID（横幅）</label>
+            <input type="text" class="input" id="settingAdBanner" placeholder="adunit-xxx">
+          </div>
+          <div class="form-group">
+            <label>广告单元 ID（激励视频）</label>
+            <input type="text" class="input" id="settingAdReward" placeholder="adunit-xxx">
+          </div>
+          <div class="form-group">
+            <label>广告单元 ID（插屏）</label>
+            <input type="text" class="input" id="settingAdInterstitial" placeholder="adunit-xxx">
+          </div>
+          <button class="btn btn-primary" onclick="saveSettings()">保存设置</button>
+        </div>
+        <div class="card">
+          <div class="card-title">📦 数据管理</div>
+          <div style="display:flex;gap:12px;flex-wrap:wrap">
+            <button class="btn btn-ghost" onclick="exportData()">📤 导出全部数据</button>
+            <label class="btn btn-ghost" style="cursor:pointer">📥 导入数据<input type="file" accept=".json" onchange="importData(event)" style="display:none"></label>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<!-- Baby Modal -->
+<div class="modal-overlay" id="babyModal">
+  <div class="modal">
+    <h3 id="babyModalTitle">添加宝宝</h3>
+    <input type="hidden" id="babyId">
+    <div class="form-row">
+      <div class="form-group"><label>姓名</label><input type="text" class="input" id="babyName" placeholder="宝宝姓名"></div>
+      <div class="form-group"><label>性别</label><select class="input" id="babyGender"><option value="male">男宝</option><option value="female">女宝</option></select></div>
+    </div>
+    <div class="form-group"><label>出生日期</label><input type="date" class="input" id="babyBirth"></div>
+    <div class="form-row-3">
+      <div class="form-group"><label>身高 (cm)</label><input type="number" class="input" id="babyHeight" step="0.1"></div>
+      <div class="form-group"><label>体重 (kg)</label><input type="number" class="input" id="babyWeight" step="0.1"></div>
+      <div class="form-group"><label>头围 (cm)</label><input type="number" class="input" id="babyHead" step="0.1"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('babyModal')">取消</button>
+      <button class="btn btn-primary" onclick="saveBaby()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Record Modal -->
+<div class="modal-overlay" id="recordModal">
+  <div class="modal">
+    <h3>添加记录</h3>
+    <div class="form-row">
+      <div class="form-group"><label>类型</label><select class="input" id="recType">
+        <option value="breast">母乳</option><option value="bottleBreast">母乳瓶喂</option><option value="formula">奶粉</option>
+        <option value="pump">吸奶</option><option value="solid">辅食</option><option value="pee">尿尿</option>
+        <option value="poop">粑粑</option><option value="sleep">睡觉</option><option value="medicine">用药</option><option value="sport">运动</option>
+      </select></div>
+      <div class="form-group"><label>时间</label><input type="datetime-local" class="input" id="recTime"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>奶量 (ml)</label><input type="number" class="input" id="recAmount"></div>
+      <div class="form-group"><label>时长 (分钟)</label><input type="number" class="input" id="recDuration"></div>
+    </div>
+    <div class="form-group"><label>备注</label><textarea class="input" id="recNote" rows="2"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('recordModal')">取消</button>
+      <button class="btn btn-primary" onclick="saveRecord()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Growth Modal -->
+<div class="modal-overlay" id="growthModal">
+  <div class="modal">
+    <h3 id="growthModalTitle">添加成长记录</h3>
+    <input type="hidden" id="growthId">
+    <div class="form-group"><label>日期</label><input type="date" class="input" id="growthDate"></div>
+    <div class="form-row-3">
+      <div class="form-group"><label>身高 (cm)</label><input type="number" class="input" id="growthHeight" step="0.1"></div>
+      <div class="form-group"><label>体重 (kg)</label><input type="number" class="input" id="growthWeight" step="0.1"></div>
+      <div class="form-group"><label>头围 (cm)</label><input type="number" class="input" id="growthHead" step="0.1"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('growthModal')">取消</button>
+      <button class="btn btn-primary" onclick="saveGrowth()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Memo Modal -->
+<div class="modal-overlay" id="memoModal">
+  <div class="modal">
+    <h3 id="memoModalTitle">添加备忘录</h3>
+    <input type="hidden" id="memoId">
+    <div class="form-row">
+      <div class="form-group"><label>类型</label><select class="input" id="memoType">
+        <option value="milestone">里程碑</option><option value="memo">备忘录</option><option value="medical">就医记录</option><option value="custom">自定义</option>
+      </select></div>
+      <div class="form-group"><label>日期</label><input type="date" class="input" id="memoDate"></div>
+    </div>
+    <div class="form-group"><label>标题</label><input type="text" class="input" id="memoTitle" placeholder="标题"></div>
+    <div class="form-group"><label>内容</label><textarea class="input" id="memoContent" rows="4" placeholder="详细内容"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('memoModal')">取消</button>
+      <button class="btn btn-primary" onclick="saveMemo()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Family Modal -->
+<div class="modal-overlay" id="familyModal">
+  <div class="modal">
+    <h3>添加家庭成员</h3>
+    <div class="form-row">
+      <div class="form-group"><label>称呼</label><input type="text" class="input" id="famLabel" placeholder="如：妈妈"></div>
+      <div class="form-group"><label>图标</label><input type="text" class="input" id="famIcon" placeholder="emoji 如：👩" value="👤"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>标识</label><input type="text" class="input" id="famKey" placeholder="如：mom"></div>
+      <div class="form-group"><label>权限</label><select class="input" id="famRole"><option value="editor">编辑者</option><option value="viewer">查看者</option></select></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('familyModal')">取消</button>
+      <button class="btn btn-primary" onclick="saveFamily()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Food Modal -->
+<div class="modal-overlay" id="foodModal">
+  <div class="modal">
+    <h3 id="foodModalTitle">添加食物</h3>
+    <input type="hidden" id="foodId">
+    <div class="form-row">
+      <div class="form-group"><label>名称</label><input type="text" class="input" id="foodName" placeholder="食物名称"></div>
+      <div class="form-group"><label>图标</label><input type="text" class="input" id="foodIcon" placeholder="emoji" value="🥕"></div>
+    </div>
+    <div class="form-group"><label>营养成分</label><textarea class="input" id="foodNutrition" rows="3" placeholder="JSON格式，如：[{&quot;label&quot;:&quot;热量&quot;,&quot;val&quot;:&quot;41kcal&quot;}]"></textarea></div>
+    <div class="form-group"><label>儿童建议</label><textarea class="input" id="foodChildren" rows="2"></textarea></div>
+    <div class="form-group"><label>适量食用</label><textarea class="input" id="foodModeration" rows="2"></textarea></div>
+    <div class="form-group"><label>注意事项</label><textarea class="input" id="foodCaution" rows="2"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('foodModal')">取消</button>
+      <button class="btn btn-primary" onclick="saveFood()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Article Modal -->
+<div class="modal-overlay" id="articleModal">
+  <div class="modal" style="max-width:700px">
+    <h3 id="articleModalTitle">发布文章</h3>
+    <input type="hidden" id="articleId">
+    <div class="form-group"><label>标题</label><input type="text" class="input" id="articleTitle" placeholder="文章标题"></div>
+    <div class="form-row">
+      <div class="form-group"><label>分类</label><input type="text" class="input" id="articleCategory" placeholder="如：喂养知识"></div>
+      <div class="form-group"><label>状态</label><select class="input" id="articleStatus"><option value="published">已发布</option><option value="draft">草稿</option></select></div>
+    </div>
+    <div class="form-group"><label>摘要</label><textarea class="input" id="articleSummary" rows="2" placeholder="文章摘要"></textarea></div>
+    <div class="form-group"><label>正文内容</label><textarea class="input" id="articleContent" rows="10" placeholder="支持HTML格式内容"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('articleModal')">取消</button>
+      <button class="btn btn-primary" onclick="saveArticle()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = '';
+let currentPage = 'dashboard';
+
+const TYPE_MAP = {
+  breast:{label:'母乳',icon:'🤱',color:'green'},bottleBreast:{label:'母乳瓶喂',icon:'🍼',color:'blue'},
+  formula:{label:'奶粉',icon:'🥛',color:'blue'},pump:{label:'吸奶',icon:'🧴',color:'green'},
+  solid:{label:'辅食',icon:'🥣',color:'orange'},pee:{label:'尿尿',icon:'💦',color:'blue'},
+  poop:{label:'粑粑',icon:'💩',color:'orange'},sleep:{label:'睡觉',icon:'😴',color:'purple'},
+  medicine:{label:'用药',icon:'💊',color:'red'},sport:{label:'运动',icon:'🏃',color:'blue'}
+};
+
+const TYPE_BADGE = (type) => {
+  const t = TYPE_MAP[type] || {label:type,icon:'📌',color:'gray'};
+  return `<span class="type-badge tag-${t.color}">${t.icon} ${t.label}</span>`;
+};
+
+const fmt = (d) => d ? d.replace('T',' ').slice(0,16) : '-';
+const fmtDate = (d) => d || '-';
+
+// Navigation
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', () => {
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    item.classList.add('active');
+    const page = item.dataset.page;
+    currentPage = page;
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById('page-' + page).classList.add('active');
+    document.getElementById('pageTitle').textContent = item.querySelector('span:last-child').textContent;
+    loadPage(page);
+  });
+});
+
+function loadPage(page) {
+  const loaders = {dashboard:loadDashboard,babies:loadBabies,records:loadRecords,growth:loadGrowth,memos:loadMemos,family:loadFamily,foods:loadFoods,articles:loadArticles,settings:loadSettings};
+  if (loaders[page]) loaders[page]();
+}
+
+// API helpers
+async function api(url, opts = {}) {
+  const res = await fetch(API + url, {headers:{'Content-Type':'application/json'}, ...opts});
+  return res.json();
+}
+
+// Dashboard
+async function loadDashboard() {
+  const d = await api('/api/dashboard');
+  document.getElementById('dashboardStats').innerHTML = `
+    <div class="stat-card"><div class="label">👶 宝宝数量</div><div class="value">${d.babies}</div></div>
+    <div class="stat-card"><div class="label">📋 总记录数</div><div class="value">${d.records}</div><div class="sub">今日 ${d.todayRecords} 条</div></div>
+    <div class="stat-card"><div class="label">📏 成长记录</div><div class="value">${d.growth}</div></div>
+    <div class="stat-card"><div class="label">📝 备忘录</div><div class="value">${d.memos}</div></div>
+    <div class="stat-card"><div class="label">🥦 食物库</div><div class="value">${d.foods}</div></div>
+    <div class="stat-card"><div class="label">📰 文章数</div><div class="value">${d.articles}</div></div>
+    <div class="stat-card"><div class="label">👨‍👩‍👧 家庭成员</div><div class="value">${d.families}</div></div>
+  `;
+  document.getElementById('typeStats').innerHTML = d.typeStats.map(t => `
+    <div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border)">
+      ${TYPE_BADGE(t.type)}
+      <span style="flex:1;font-size:13px;color:#666">${t.count} 次</span>
+      <span style="font-size:13px;color:var(--primary);font-weight:600">${t.total_amount ? t.total_amount + 'ml' : ''} ${t.total_duration ? t.total_duration + '分钟' : ''}</span>
+    </div>
+  `).join('') || '<div class="empty">暂无数据</div>';
+  document.getElementById('recentRecords').innerHTML = d.recentRecords.length ? `
+    <table><tr><th>时间</th><th>类型</th><th>奶量</th><th>时长</th><th>备注</th></tr>
+    ${d.recentRecords.map(r => `<tr><td>${fmt(r.time)}</td><td>${TYPE_BADGE(r.type)}</td><td>${r.amount || '-'}</td><td>${r.duration || '-'}</td><td>${r.note || '-'}</td></tr>`).join('')}</table>
+  ` : '<div class="empty">暂无记录</div>';
+}
+
+// Babies
+async function loadBabies() {
+  const list = await api('/api/babies');
+  document.getElementById('babyList').innerHTML = list.length ? `
+    <table><tr><th>姓名</th><th>性别</th><th>出生日期</th><th>身高</th><th>体重</th><th>头围</th><th>操作</th></tr>
+    ${list.map(b => `<tr>
+      <td><strong>${b.name}</strong></td>
+      <td>${b.gender === 'male' ? '👦 男' : '👧 女'}</td>
+      <td>${fmtDate(b.birth_date)}</td>
+      <td>${b.height ? b.height + 'cm' : '-'}</td>
+      <td>${b.weight ? b.weight + 'kg' : '-'}</td>
+      <td>${b.head_circumference ? b.head_circumference + 'cm' : '-'}</td>
+      <td><button class="btn btn-ghost btn-sm" onclick="editBaby('${b.id}')">编辑</button> <button class="btn btn-danger btn-sm" onclick="deleteBaby('${b.id}')">删除</button></td>
+    </tr>`).join('')}</table>
+  ` : '<div class="empty"><div class="icon">👶</div>暂无宝宝数据</div>';
+}
+
+function openBabyModal(baby) {
+  document.getElementById('babyModalTitle').textContent = baby ? '编辑宝宝' : '添加宝宝';
+  document.getElementById('babyId').value = baby ? baby.id : '';
+  document.getElementById('babyName').value = baby ? baby.name : '';
+  document.getElementById('babyGender').value = baby ? baby.gender : 'male';
+  document.getElementById('babyBirth').value = baby ? baby.birth_date : '';
+  document.getElementById('babyHeight').value = baby ? baby.height || '' : '';
+  document.getElementById('babyWeight').value = baby ? baby.weight || '' : '';
+  document.getElementById('babyHead').value = baby ? baby.head_circumference || '' : '';
+  document.getElementById('babyModal').classList.add('show');
+}
+
+async function editBaby(id) {
+  const list = await api('/api/babies');
+  const baby = list.find(b => b.id === id);
+  if (baby) openBabyModal(baby);
+}
+
+async function saveBaby() {
+  const id = document.getElementById('babyId').value;
+  const data = {
+    name: document.getElementById('babyName').value,
+    gender: document.getElementById('babyGender').value,
+    birth_date: document.getElementById('babyBirth').value,
+    height: parseFloat(document.getElementById('babyHeight').value) || null,
+    weight: parseFloat(document.getElementById('babyWeight').value) || null,
+    head_circumference: parseFloat(document.getElementById('babyHead').value) || null,
+  };
+  if (!data.name || !data.birth_date) return alert('请填写姓名和出生日期');
+  if (id) { await api('/api/babies/' + id, {method:'PUT',body:JSON.stringify(data)}); }
+  else { await api('/api/babies', {method:'POST',body:JSON.stringify(data)}); }
+  closeModal('babyModal');
+  loadBabies();
+}
+
+async function deleteBaby(id) {
+  if (!confirm('确定删除该宝宝及所有相关数据？')) return;
+  await api('/api/babies/' + id, {method:'DELETE'});
+  loadBabies();
+}
+
+// Records
+async function loadRecords() {
+  const type = document.getElementById('recordTypeFilter').value;
+  const date = document.getElementById('recordDateFilter').value;
+  let url = '/api/records?limit=200';
+  if (type) url += '&type=' + type;
+  if (date) url += '&date=' + date;
+  const list = await api(url);
+  document.getElementById('recordList').innerHTML = list.length ? `
+    <table><tr><th>时间</th><th>类型</th><th>奶量</th><th>时长</th><th>备注</th><th>操作</th></tr>
+    ${list.map(r => `<tr>
+      <td>${fmt(r.time)}</td><td>${TYPE_BADGE(r.type)}</td>
+      <td>${r.amount ? r.amount + 'ml' : '-'}</td><td>${r.duration ? r.duration + '分' : '-'}</td>
+      <td>${r.note || '-'}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="deleteRecord(${r.id})">删除</button></td>
+    </tr>`).join('')}</table>
+  ` : '<div class="empty"><div class="icon">📋</div>暂无记录</div>';
+}
+
+function openRecordModal() {
+  document.getElementById('recTime').value = new Date().toISOString().slice(0,16);
+  document.getElementById('recAmount').value = '';
+  document.getElementById('recDuration').value = '';
+  document.getElementById('recNote').value = '';
+  document.getElementById('recordModal').classList.add('show');
+}
+
+async function saveRecord() {
+  const data = {
+    type: document.getElementById('recType').value,
+    time: document.getElementById('recTime').value.replace('T', ' '),
+    amount: parseFloat(document.getElementById('recAmount').value) || 0,
+    duration: parseInt(document.getElementById('recDuration').value) || 0,
+    note: document.getElementById('recNote').value,
+  };
+  if (!data.time) return alert('请填写时间');
+  await api('/api/records', {method:'POST',body:JSON.stringify(data)});
+  closeModal('recordModal');
+  loadRecords();
+}
+
+async function deleteRecord(id) {
+  if (!confirm('确定删除这条记录？')) return;
+  await api('/api/records/' + id, {method:'DELETE'});
+  loadRecords();
+}
+
+// Growth
+async function loadGrowth() {
+  const list = await api('/api/growth');
+  document.getElementById('growthList').innerHTML = list.length ? `
+    <table><tr><th>日期</th><th>身高</th><th>体重</th><th>头围</th><th>月龄</th><th>操作</th></tr>
+    ${list.map(g => `<tr>
+      <td>${fmtDate(g.date)}</td><td>${g.height || '-'}cm</td><td>${g.weight || '-'}kg</td><td>${g.head_circumference || '-'}cm</td><td>${g.age || '-'}</td>
+      <td><button class="btn btn-ghost btn-sm" onclick="editGrowth(${g.id},'${g.date}',${g.height||0},${g.weight||0},${g.head_circumference||0})">编辑</button> <button class="btn btn-danger btn-sm" onclick="deleteGrowth(${g.id})">删除</button></td>
+    </tr>`).join('')}</table>
+  ` : '<div class="empty"><div class="icon">📏</div>暂无成长记录</div>';
+}
+
+function openGrowthModal() {
+  document.getElementById('growthModalTitle').textContent = '添加成长记录';
+  document.getElementById('growthId').value = '';
+  document.getElementById('growthDate').value = new Date().toISOString().slice(0,10);
+  document.getElementById('growthHeight').value = '';
+  document.getElementById('growthWeight').value = '';
+  document.getElementById('growthHead').value = '';
+  document.getElementById('growthModal').classList.add('show');
+}
+
+function editGrowth(id, date, h, w, head) {
+  document.getElementById('growthModalTitle').textContent = '编辑成长记录';
+  document.getElementById('growthId').value = id;
+  document.getElementById('growthDate').value = date;
+  document.getElementById('growthHeight').value = h || '';
+  document.getElementById('growthWeight').value = w || '';
+  document.getElementById('growthHead').value = head || '';
+  document.getElementById('growthModal').classList.add('show');
+}
+
+async function saveGrowth() {
+  const id = document.getElementById('growthId').value;
+  const data = {
+    date: document.getElementById('growthDate').value,
+    height: parseFloat(document.getElementById('growthHeight').value) || null,
+    weight: parseFloat(document.getElementById('growthWeight').value) || null,
+    head_circumference: parseFloat(document.getElementById('growthHead').value) || null,
+  };
+  if (!data.date) return alert('请填写日期');
+  if (id) { await api('/api/growth/' + id, {method:'PUT',body:JSON.stringify(data)}); }
+  else { data.baby_id = 'baby_default'; await api('/api/growth', {method:'POST',body:JSON.stringify(data)}); }
+  closeModal('growthModal');
+  loadGrowth();
+}
+
+async function deleteGrowth(id) {
+  if (!confirm('确定删除？')) return;
+  await api('/api/growth/' + id, {method:'DELETE'});
+  loadGrowth();
+}
+
+// Memos
+async function loadMemos() {
+  const type = document.getElementById('memoTypeFilter').value;
+  let url = '/api/memos';
+  if (type) url += '?type=' + type;
+  const list = await api(url);
+  const typeLabels = {milestone:'里程碑',memo:'备忘录',medical:'就医记录',custom:'自定义'};
+  const typeColors = {milestone:'green',memo:'blue',medical:'red',custom:'purple'};
+  document.getElementById('memoList').innerHTML = list.length ? `
+    <table><tr><th>日期</th><th>类型</th><th>标题</th><th>内容</th><th>操作</th></tr>
+    ${list.map(m => `<tr>
+      <td>${fmtDate(m.date)}</td>
+      <td><span class="tag tag-${typeColors[m.type]||'gray'}">${typeLabels[m.type]||m.type}</span></td>
+      <td>${m.title || '-'}</td>
+      <td style="max-width:300px">${m.content || '-'}</td>
+      <td><button class="btn btn-ghost btn-sm" onclick="editMemo(${m.id})">编辑</button> <button class="btn btn-danger btn-sm" onclick="deleteMemo(${m.id})">删除</button></td>
+    </tr>`).join('')}</table>
+  ` : '<div class="empty"><div class="icon">📝</div>暂无备忘录</div>';
+}
+
+function openMemoModal() {
+  document.getElementById('memoModalTitle').textContent = '添加备忘录';
+  document.getElementById('memoId').value = '';
+  document.getElementById('memoType').value = 'memo';
+  document.getElementById('memoDate').value = new Date().toISOString().slice(0,10);
+  document.getElementById('memoTitle').value = '';
+  document.getElementById('memoContent').value = '';
+  document.getElementById('memoModal').classList.add('show');
+}
+
+async function editMemo(id) {
+  const list = await api('/api/memos');
+  const m = list.find(x => x.id === id);
+  if (!m) return;
+  document.getElementById('memoModalTitle').textContent = '编辑备忘录';
+  document.getElementById('memoId').value = m.id;
+  document.getElementById('memoType').value = m.type;
+  document.getElementById('memoDate').value = m.date;
+  document.getElementById('memoTitle').value = m.title || '';
+  document.getElementById('memoContent').value = m.content || '';
+  document.getElementById('memoModal').classList.add('show');
+}
+
+async function saveMemo() {
+  const id = document.getElementById('memoId').value;
+  const data = {
+    type: document.getElementById('memoType').value,
+    date: document.getElementById('memoDate').value,
+    title: document.getElementById('memoTitle').value,
+    content: document.getElementById('memoContent').value,
+    type_name: {milestone:'里程碑',memo:'备忘录',medical:'就医记录',custom:'自定义'}[document.getElementById('memoType').value],
+    icon: {milestone:'🎯',memo:'📝',medical:'🏥',custom:'📌'}[document.getElementById('memoType').value],
+    baby_id: 'baby_default',
+  };
+  if (!data.date) return alert('请填写日期');
+  if (id) { await api('/api/memos/' + id, {method:'PUT',body:JSON.stringify(data)}); }
+  else { data.id = Date.now(); await api('/api/memos', {method:'POST',body:JSON.stringify(data)}); }
+  closeModal('memoModal');
+  loadMemos();
+}
+
+async function deleteMemo(id) {
+  if (!confirm('确定删除？')) return;
+  await api('/api/memos/' + id, {method:'DELETE'});
+  loadMemos();
+}
+
+// Family
+async function loadFamily() {
+  const list = await api('/api/family');
+  document.getElementById('familyList').innerHTML = list.length ? `
+    <table><tr><th>图标</th><th>称呼</th><th>标识</th><th>权限</th><th>加入时间</th><th>操作</th></tr>
+    ${list.map(f => `<tr>
+      <td style="font-size:24px">${f.icon || '👤'}</td>
+      <td><strong>${f.label}</strong></td><td>${f.member_key}</td>
+      <td><span class="tag tag-${f.role==='editor'?'green':'gray'}">${f.role==='editor'?'编辑者':'查看者'}</span></td>
+      <td>${fmtDate(f.join_time)}</td>
+      <td><button class="btn btn-ghost btn-sm" onclick="editFamily(${f.id},'${f.label}','${f.member_key}','${f.role}','${f.icon||'👤'}')">编辑</button> <button class="btn btn-danger btn-sm" onclick="deleteFamily(${f.id})">删除</button></td>
+    </tr>`).join('')}</table>
+  ` : '<div class="empty"><div class="icon">👨‍👩‍👧</div>暂无家庭成员</div>';
+}
+
+function openFamilyModal() {
+  document.getElementById('famLabel').value = '';
+  document.getElementById('famKey').value = '';
+  document.getElementById('famIcon').value = '👤';
+  document.getElementById('famRole').value = 'editor';
+  document.getElementById('familyModal').classList.add('show');
+}
+
+function editFamily(id, label, key, role, icon) {
+  openFamilyModal();
+  document.getElementById('famLabel').value = label;
+  document.getElementById('famKey').value = key;
+  document.getElementById('famIcon').value = icon;
+  document.getElementById('famRole').value = role;
+  document.getElementById('familyModal').dataset.id = id;
+}
+
+async function saveFamily() {
+  const id = document.getElementById('familyModal').dataset.id;
+  const data = {
+    label: document.getElementById('famLabel').value,
+    member_key: document.getElementById('famKey').value,
+    icon: document.getElementById('famIcon').value,
+    role: document.getElementById('famRole').value,
+    baby_id: 'baby_default',
+  };
+  if (!data.label || !data.member_key) return alert('请填写称呼和标识');
+  if (id) {
+    await api('/api/family/' + id, {method:'PUT',body:JSON.stringify(data)});
+    delete document.getElementById('familyModal').dataset.id;
+  } else {
+    await api('/api/family', {method:'POST',body:JSON.stringify(data)});
+  }
+  closeModal('familyModal');
+  loadFamily();
+}
+
+async function deleteFamily(id) {
+  if (!confirm('确定删除？')) return;
+  await api('/api/family/' + id, {method:'DELETE'});
+  loadFamily();
+}
+
+// Foods
+async function loadFoods() {
+  const search = document.getElementById('foodSearch').value;
+  let url = '/api/foods';
+  if (search) url += '?search=' + encodeURIComponent(search);
+  const list = await api(url);
+  document.getElementById('foodList').innerHTML = list.length ? `
+    <table><tr><th>图标</th><th>名称</th><th>儿童建议</th><th>注意事项</th><th>操作</th></tr>
+    ${list.map(f => `<tr>
+      <td style="font-size:24px">${f.icon || '🥕'}</td>
+      <td><strong>${f.name}</strong></td>
+      <td style="max-width:300px">${f.children || '-'}</td>
+      <td style="max-width:200px">${f.caution || '-'}</td>
+      <td><button class="btn btn-ghost btn-sm" onclick="editFood(${f.id})">编辑</button> <button class="btn btn-danger btn-sm" onclick="deleteFood(${f.id})">删除</button></td>
+    </tr>`).join('')}</table>
+  ` : '<div class="empty"><div class="icon">🥦</div>暂无食物数据</div>';
+}
+
+function openFoodModal() {
+  document.getElementById('foodModalTitle').textContent = '添加食物';
+  document.getElementById('foodId').value = '';
+  document.getElementById('foodName').value = '';
+  document.getElementById('foodIcon').value = '🥕';
+  document.getElementById('foodNutrition').value = '';
+  document.getElementById('foodChildren').value = '';
+  document.getElementById('foodModeration').value = '';
+  document.getElementById('foodCaution').value = '';
+  document.getElementById('foodModal').classList.add('show');
+}
+
+async function editFood(id) {
+  const list = await api('/api/foods');
+  const f = list.find(x => x.id === id);
+  if (!f) return;
+  document.getElementById('foodModalTitle').textContent = '编辑食物';
+  document.getElementById('foodId').value = f.id;
+  document.getElementById('foodName').value = f.name;
+  document.getElementById('foodIcon').value = f.icon || '🥕';
+  document.getElementById('foodNutrition').value = f.nutrition || '';
+  document.getElementById('foodChildren').value = f.children || '';
+  document.getElementById('foodModeration').value = f.moderation || '';
+  document.getElementById('foodCaution').value = f.caution || '';
+  document.getElementById('foodModal').classList.add('show');
+}
+
+async function saveFood() {
+  const id = document.getElementById('foodId').value;
+  const data = {
+    name: document.getElementById('foodName').value,
+    icon: document.getElementById('foodIcon').value,
+    nutrition: document.getElementById('foodNutrition').value,
+    pregnancy: '',
+    children: document.getElementById('foodChildren').value,
+    moderation: document.getElementById('foodModeration').value,
+    detail: '',
+    suggestion: '',
+    caution: document.getElementById('foodCaution').value,
+  };
+  if (!data.name) return alert('请填写食物名称');
+  if (id) { await api('/api/foods/' + id, {method:'PUT',body:JSON.stringify(data)}); }
+  else { await api('/api/foods', {method:'POST',body:JSON.stringify(data)}); }
+  closeModal('foodModal');
+  loadFoods();
+}
+
+async function deleteFood(id) {
+  if (!confirm('确定删除？')) return;
+  await api('/api/foods/' + id, {method:'DELETE'});
+  loadFoods();
+}
+
+// Articles
+async function loadArticles() {
+  const search = document.getElementById('articleSearch').value;
+  const status = document.getElementById('articleStatusFilter').value;
+  let url = '/api/articles?';
+  if (search) url += 'search=' + encodeURIComponent(search) + '&';
+  if (status) url += 'status=' + status;
+  const list = await api(url);
+  document.getElementById('articleList').innerHTML = list.length ? `
+    <table><tr><th>标题</th><th>分类</th><th>状态</th><th>作者</th><th>发布时间</th><th>操作</th></tr>
+    ${list.map(a => `<tr>
+      <td><strong>${a.title}</strong></td>
+      <td>${a.category || '-'}</td>
+      <td><span class="tag tag-${a.status==='published'?'green':'gray'}">${a.status==='published'?'已发布':'草稿'}</span></td>
+      <td>${a.author || '-'}</td>
+      <td>${fmt(a.created_at)}</td>
+      <td><button class="btn btn-ghost btn-sm" onclick="editArticle(${a.id})">编辑</button> <button class="btn btn-danger btn-sm" onclick="deleteArticle(${a.id})">删除</button></td>
+    </tr>`).join('')}</table>
+  ` : '<div class="empty"><div class="icon">📰</div>暂无文章</div>';
+}
+
+function openArticleModal() {
+  document.getElementById('articleModalTitle').textContent = '发布文章';
+  document.getElementById('articleId').value = '';
+  document.getElementById('articleTitle').value = '';
+  document.getElementById('articleCategory').value = '';
+  document.getElementById('articleStatus').value = 'published';
+  document.getElementById('articleSummary').value = '';
+  document.getElementById('articleContent').value = '';
+  document.getElementById('articleModal').classList.add('show');
+}
+
+async function editArticle(id) {
+  const a = await api('/api/articles/' + id);
+  document.getElementById('articleModalTitle').textContent = '编辑文章';
+  document.getElementById('articleId').value = a.id;
+  document.getElementById('articleTitle').value = a.title;
+  document.getElementById('articleCategory').value = a.category || '';
+  document.getElementById('articleStatus').value = a.status;
+  document.getElementById('articleSummary').value = a.summary || '';
+  document.getElementById('articleContent').value = a.content || '';
+  document.getElementById('articleModal').classList.add('show');
+}
+
+async function saveArticle() {
+  const id = document.getElementById('articleId').value;
+  const data = {
+    title: document.getElementById('articleTitle').value,
+    category: document.getElementById('articleCategory').value,
+    status: document.getElementById('articleStatus').value,
+    summary: document.getElementById('articleSummary').value,
+    content: document.getElementById('articleContent').value,
+    author: '管理员',
+  };
+  if (!data.title) return alert('请填写文章标题');
+  if (id) { await api('/api/articles/' + id, {method:'PUT',body:JSON.stringify(data)}); }
+  else { await api('/api/articles', {method:'POST',body:JSON.stringify(data)}); }
+  closeModal('articleModal');
+  loadArticles();
+}
+
+async function deleteArticle(id) {
+  if (!confirm('确定删除该文章？')) return;
+  await api('/api/articles/' + id, {method:'DELETE'});
+  loadArticles();
+}
+
+// Settings
+async function loadSettings() {
+  const s = await api('/api/settings');
+  document.getElementById('settingAdBanner').value = s.ad_banner || '';
+  document.getElementById('settingAdReward').value = s.ad_reward || '';
+  document.getElementById('settingAdInterstitial').value = s.ad_interstitial || '';
+}
+
+async function saveSettings() {
+  await api('/api/settings', {method:'PUT',body:JSON.stringify({
+    ad_banner: document.getElementById('settingAdBanner').value,
+    ad_reward: document.getElementById('settingAdReward').value,
+    ad_interstitial: document.getElementById('settingAdInterstitial').value,
+  })});
+  alert('设置已保存');
+}
+
+// Data export/import
+async function exportData() {
+  const data = await api('/api/sync/export');
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'baby-data-' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+}
+
+async function importData(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  if (!confirm('导入将覆盖现有数据，确定继续？')) return;
+  const text = await file.text();
+  try {
+    const data = JSON.parse(text);
+    const res = await api('/api/sync/import', {method:'POST',body:JSON.stringify(data)});
+    alert(res.message || '导入完成');
+    loadPage(currentPage);
+  } catch(e) {
+    alert('导入失败：文件格式错误');
+  }
+  event.target.value = '';
+}
+
+// Modal helpers
+function closeModal(id) {
+  document.getElementById(id).classList.remove('show');
+}
+
+document.querySelectorAll('.modal-overlay').forEach(m => {
+  m.addEventListener('click', (e) => {
+    if (e.target === m) m.classList.remove('show');
+  });
+});
+
+// Init
+loadDashboard();
+</script>
+</body>
+</html>
