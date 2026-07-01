@@ -7,8 +7,11 @@ const app = express();
 const PORT = 3000;
 const DB_FILE = path.join(__dirname, 'data.json');
 
-app.use(cors());
-app.use(express.json({ limit: '10mb' }));
+app.use(cors({
+  origin: ['https://www.caidan365.online', 'http://localhost:3000'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.static(path.join(__dirname, 'public')));
 
 function loadDB() {
