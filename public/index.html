@@ -423,7 +423,8 @@ textarea.input{resize:vertical;min-height:80px;font-family:inherit}
 </div>
 
 <script>
-const API = '';
+const API = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  ? '' : 'https://baby-admin-api.onrender.com';
 let currentPage = 'dashboard';
 
 const TYPE_MAP = {
