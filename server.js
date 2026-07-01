@@ -23,6 +23,7 @@ function loadDB() {
       growthRecords: [],
       foods: [],
       articles: [],
+      notifications: [],
       settings: {}
     };
   }
@@ -249,6 +250,32 @@ app.delete('/api/articles/:id', (req, res) => {
   res.json({ success: true });
 });
 
+// ========== Notifications ==========
+app.get('/api/notifications', (req, res) => {
+  let list = [...db.notifications];
+  if (req.query.active === 'true') list = list.filter(n => n.status === 'active');
+  list.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+  res.json(list);
+});
+app.post('/api/notifications', (req, res) => {
+  const n = { id: Date.now(), created_at: new Date().toISOString(), status: 'active', ...req.body };
+  db.notifications.push(n);
+  saveDB(db);
+  res.json({ success: true, id: n.id });
+});
+app.put('/api/notifications/:id', (req, res) => {
+  const idx = db.notifications.findIndex(n => n.id === Number(req.params.id));
+  if (idx === -1) return res.status(404).json({ error: 'Not found' });
+  Object.assign(db.notifications[idx], req.body);
+  saveDB(db);
+  res.json({ success: true });
+});
+app.delete('/api/notifications/:id', (req, res) => {
+  db.notifications = db.notifications.filter(n => n.id !== Number(req.params.id));
+  saveDB(db);
+  res.json({ success: true });
+});
+
 // ========== Settings ==========
 app.get('/api/settings', (req, res) => res.json(db.settings || {}));
 app.put('/api/settings', (req, res) => {
@@ -264,7 +291,7 @@ app.get('/api/sync/export', (req, res) => {
 app.post('/api/sync/import', (req, res) => {
   try {
     const data = req.body;
-    const keys = ['babies', 'feedingRecords', 'familyMembers', 'vaccineStatus', 'vaccineRecords', 'parentMemos', 'growthRecords', 'foods', 'articles', 'settings'];
+    const keys = ['babies', 'feedingRecords', 'familyMembers', 'vaccineStatus', 'vaccineRecords', 'parentMemos', 'growthRecords', 'foods', 'articles', 'notifications', 'settings'];
     keys.forEach(k => { if (data[k] !== undefined) db[k] = data[k]; });
     saveDB(db);
     res.json({ success: true, message: '数据导入成功' });

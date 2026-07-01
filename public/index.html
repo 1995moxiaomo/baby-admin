@@ -107,6 +107,7 @@ textarea.input{resize:vertical;min-height:80px;font-family:inherit}
       <div class="nav-item" data-page="family"><span class="icon">👨‍👩‍👧</span><span>家庭成员</span></div>
       <div class="nav-item" data-page="foods"><span class="icon">🥦</span><span>食物库</span></div>
       <div class="nav-item" data-page="articles"><span class="icon">📰</span><span>文章管理</span></div>
+      <div class="nav-item" data-page="notifications"><span class="icon">🔔</span><span>通知栏管理</span></div>
       <div class="nav-item" data-page="settings"><span class="icon">⚙️</span><span>系统设置</span></div>
     </nav>
   </aside>
@@ -217,6 +218,19 @@ textarea.input{resize:vertical;min-height:80px;font-family:inherit}
           <button class="btn btn-primary" onclick="openArticleModal()">＋ 发布文章</button>
         </div>
         <div class="card"><div id="articleList"></div></div>
+      </div>
+
+      <!-- Notifications -->
+      <div class="page" id="page-notifications">
+        <div class="filter-bar">
+          <select class="input" id="notifStatusFilter" onchange="loadNotifications()" style="width:120px">
+            <option value="">全部状态</option>
+            <option value="active">启用</option>
+            <option value="inactive">停用</option>
+          </select>
+          <button class="btn btn-primary" onclick="openNotifModal()">＋ 添加通知</button>
+        </div>
+        <div class="card"><div id="notifList"></div></div>
       </div>
 
       <!-- Settings -->
@@ -373,7 +387,23 @@ textarea.input{resize:vertical;min-height:80px;font-family:inherit}
   </div>
 </div>
 
-<!-- Article Modal -->
+<!-- Notification Modal -->
+<div class="modal-overlay" id="notifModal">
+  <div class="modal">
+    <h3 id="notifModalTitle">添加通知</h3>
+    <input type="hidden" id="notifId">
+    <div class="form-group"><label>通知内容</label><textarea class="input" id="notifContent" rows="3" placeholder="输入通知内容，如：记得按时记录宝宝的喂养情况哦～"></textarea></div>
+    <div class="form-row">
+      <div class="form-group"><label>状态</label><select class="input" id="notifStatus"><option value="active">启用</option><option value="inactive">停用</option></select></div>
+      <div class="form-group"><label>排序（数字越大越靠前）</label><input type="number" class="input" id="notifSort" value="0"></div>
+    </div>
+    <div class="form-group"><label>备注（仅后台可见）</label><input type="text" class="input" id="notifRemark" placeholder="内部备注"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('notifModal')">取消</button>
+      <button class="btn btn-primary" onclick="saveNotif()">保存</button>
+    </div>
+  </div>
+</div>
 <div class="modal-overlay" id="articleModal">
   <div class="modal" style="max-width:700px">
     <h3 id="articleModalTitle">发布文章</h3>
@@ -427,7 +457,7 @@ document.querySelectorAll('.nav-item').forEach(item => {
 });
 
 function loadPage(page) {
-  const loaders = {dashboard:loadDashboard,babies:loadBabies,records:loadRecords,growth:loadGrowth,memos:loadMemos,family:loadFamily,foods:loadFoods,articles:loadArticles,settings:loadSettings};
+  const loaders = {dashboard:loadDashboard,babies:loadBabies,records:loadRecords,growth:loadGrowth,memos:loadMemos,family:loadFamily,foods:loadFoods,articles:loadArticles,notifications:loadNotifications,settings:loadSettings};
   if (loaders[page]) loaders[page]();
 }
 
@@ -881,6 +911,85 @@ async function deleteArticle(id) {
   if (!confirm('确定删除该文章？')) return;
   await api('/api/articles/' + id, {method:'DELETE'});
   loadArticles();
+}
+
+// Notifications
+async function loadNotifications() {
+  const status = document.getElementById('notifStatusFilter').value;
+  let url = '/api/notifications';
+  if (status) url += '?status=' + status;
+  // status filter is client-side since API only supports active filter
+  const list = await api('/api/notifications');
+  let filtered = list;
+  if (status) filtered = list.filter(n => n.status === status);
+  document.getElementById('notifList').innerHTML = filtered.length ? `
+    <table><tr><th>内容</th><th>状态</th><th>排序</th><th>备注</th><th>创建时间</th><th>操作</th></tr>
+    ${filtered.map(n => `<tr>
+      <td style="max-width:300px">${n.content || '-'}</td>
+      <td><span class="tag tag-${n.status === 'active' ? 'green' : 'gray'}">${n.status === 'active' ? '启用' : '停用'}</span></td>
+      <td>${n.sort || 0}</td>
+      <td>${n.remark || '-'}</td>
+      <td>${fmt(n.created_at)}</td>
+      <td>
+        <button class="btn btn-ghost btn-sm" onclick="toggleNotif(${n.id},'${n.status}')">${n.status === 'active' ? '停用' : '启用'}</button>
+        <button class="btn btn-ghost btn-sm" onclick="editNotif(${n.id})">编辑</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteNotif(${n.id})">删除</button>
+      </td>
+    </tr>`).join('')}</table>
+  ` : '<div class="empty"><div class="icon">🔔</div>暂无通知</div>';
+}
+
+function openNotifModal() {
+  document.getElementById('notifModalTitle').textContent = '添加通知';
+  document.getElementById('notifId').value = '';
+  document.getElementById('notifContent').value = '';
+  document.getElementById('notifStatus').value = 'active';
+  document.getElementById('notifSort').value = '0';
+  document.getElementById('notifRemark').value = '';
+  document.getElementById('notifModal').classList.add('show');
+}
+
+async function editNotif(id) {
+  const list = await api('/api/notifications');
+  const n = list.find(x => x.id === id);
+  if (!n) return;
+  document.getElementById('notifModalTitle').textContent = '编辑通知';
+  document.getElementById('notifId').value = n.id;
+  document.getElementById('notifContent').value = n.content || '';
+  document.getElementById('notifStatus').value = n.status || 'active';
+  document.getElementById('notifSort').value = n.sort || 0;
+  document.getElementById('notifRemark').value = n.remark || '';
+  document.getElementById('notifModal').classList.add('show');
+}
+
+async function saveNotif() {
+  const id = document.getElementById('notifId').value;
+  const data = {
+    content: document.getElementById('notifContent').value,
+    status: document.getElementById('notifStatus').value,
+    sort: parseInt(document.getElementById('notifSort').value) || 0,
+    remark: document.getElementById('notifRemark').value,
+  };
+  if (!data.content) return alert('请填写通知内容');
+  if (id) {
+    await api('/api/notifications/' + id, {method:'PUT', body:JSON.stringify(data)});
+  } else {
+    await api('/api/notifications', {method:'POST', body:JSON.stringify(data)});
+  }
+  closeModal('notifModal');
+  loadNotifications();
+}
+
+async function toggleNotif(id, currentStatus) {
+  const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+  await api('/api/notifications/' + id, {method:'PUT', body:JSON.stringify({status: newStatus})});
+  loadNotifications();
+}
+
+async function deleteNotif(id) {
+  if (!confirm('确定删除该通知？')) return;
+  await api('/api/notifications/' + id, {method:'DELETE'});
+  loadNotifications();
 }
 
 // Settings
